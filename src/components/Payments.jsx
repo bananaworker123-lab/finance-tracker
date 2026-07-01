@@ -79,10 +79,15 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
     { key: 'paid', label: 'Paid', count: standaloneBills.filter(b => b.status === 'paid').length },
   ];
 
-  const sortedBills = [...filteredBills].sort((a, b) => {
-    const order = { overdue: 0, upcoming: 1, paid: 2 };
-    if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
-    return new Date(a.due_date) - new Date(b.due_date);
+  const sortedBills = [...filteredBills].sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
+
+  const sortedInst = [...filteredInst].sort((a, b) => {
+    const nextA = instBills.filter(b2 => b2.installment_id === a.id && b2.status !== 'paid' && b2.status !== 'cancelled').sort((x, y) => new Date(x.due_date) - new Date(y.due_date))[0];
+    const nextB = instBills.filter(b2 => b2.installment_id === b.id && b2.status !== 'paid' && b2.status !== 'cancelled').sort((x, y) => new Date(x.due_date) - new Date(y.due_date))[0];
+    if (!nextA && !nextB) return 0;
+    if (!nextA) return 1;
+    if (!nextB) return -1;
+    return new Date(nextA.due_date) - new Date(nextB.due_date);
   });
 
   return (
@@ -155,7 +160,7 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
                     <div style={{ fontSize: 15.5, fontWeight: 800, color: '#15271f' }}>{baht(bill.paid_amount || bill.amount)}</div>
                     <div style={{ display: 'inline-block', marginTop: 4, fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: b.bg, color: b.color }}>{b.label}</div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div style={{ display: 'flex', gap: 5 }}>
                     <button onClick={() => setEditBill({ ...bill, due_date: new Date(bill.due_date).toISOString().split('T')[0] })} style={{
                       border: 'none', cursor: 'pointer', width: 30, height: 30, borderRadius: 9,
                       background: '#f4f3ef', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -187,7 +192,7 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
         })}
 
         {/* Installment cards */}
-        {tab !== 'bills' && filteredInst.map(inst => {
+        {tab !== 'bills' && sortedInst.map(inst => {
           const instBillsForThis = instBills.filter(b => b.installment_id === inst.id);
           const totalPer = instBillsForThis.length;
           const paid = instBillsForThis.filter(b => b.status === 'paid').length;
@@ -242,7 +247,7 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
           );
         })}
 
-        {(tab !== 'bills' ? filteredInst : []).length === 0 && sortedBills.length === 0 && (
+        {(tab !== 'bills' ? sortedInst : []).length === 0 && sortedBills.length === 0 && (
           <div style={{ textAlign: 'center', padding: '54px 20px', color: '#aab2ab' }}>
             <div style={{ fontSize: 36, marginBottom: 10 }}>🎉</div>
             <div style={{ fontSize: 14, fontWeight: 600 }}>Nothing here — you're all caught up</div>

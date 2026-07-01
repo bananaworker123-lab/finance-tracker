@@ -9,6 +9,8 @@ export default function PlanDetail({ planId, onBack }) {
   const [editingId, setEditingId] = useState(null);
   const [editingAmount, setEditingAmount] = useState('');
   const [confirmClose, setConfirmClose] = useState(false);
+  const [editPlan, setEditPlan] = useState(null); // { name }
+  const [confirmDeletePlan, setConfirmDeletePlan] = useState(false);
 
   const inst = useLiveQuery(() => db.installments.get(planId), [planId], 'installments');
   const allBills = useLiveQuery(() =>
@@ -94,6 +96,26 @@ export default function PlanDetail({ planId, onBack }) {
     await db.installments.update(planId, { total_installments: newIndex });
   }
 
+  async function savePlan() {
+    if (!editPlan.name.trim()) return;
+    await db.installments.update(planId, { name: editPlan.name.trim() });
+    // update all bills' names too
+    for (const b of allBills) {
+      await db.bills.update(b.id, { name: `${editPlan.name.trim()} · งวดที่ ${b.installment_index}` });
+    }
+    setEditPlan(null);
+  }
+
+  async function deletePlan() {
+    // delete all bills first, then the installment
+    for (const b of allBills) {
+      await db.bills.delete(b.id);
+    }
+    await db.installments.delete(planId);
+    setConfirmDeletePlan(false);
+    onBack();
+  }
+
   async function closeEarlyAsPaid() {
     const now = new Date().toISOString();
     const remaining = allBills.filter(b => b.status !== 'paid');
@@ -129,7 +151,23 @@ export default function PlanDetail({ planId, onBack }) {
         }}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15271f" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
         </button>
-        <span style={{ fontSize: 18, fontWeight: 700, color: '#15271f' }}>Plan details</span>
+        <span style={{ fontSize: 18, fontWeight: 700, color: '#15271f', flex: 1 }}>Plan details</span>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setEditPlan({ name: inst.name })} style={{
+            border: 'none', cursor: 'pointer', width: 36, height: 36, borderRadius: 11,
+            background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 8px 20px -16px rgba(20,40,30,.4)',
+          }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5d7167" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+          </button>
+          <button onClick={() => setConfirmDeletePlan(true)} style={{
+            border: 'none', cursor: 'pointer', width: 36, height: 36, borderRadius: 11,
+            background: '#fef2f1', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 8px 20px -16px rgba(20,40,30,.4)',
+          }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#e0564f" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+          </button>
+        </div>
       </div>
 
       {/* Summary card */}
@@ -301,6 +339,40 @@ export default function PlanDetail({ planId, onBack }) {
         }}>
           Close plan early
         </button>
+      )}
+
+      {/* Edit plan modal */}
+      {editPlan && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(21,39,31,.55)', display: 'flex', alignItems: 'flex-end', zIndex: 100 }}
+          onClick={() => setEditPlan(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', background: '#fff', borderRadius: '28px 28px 0 0', padding: '24px 20px 36px' }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: '#15271f', marginBottom: 18 }}>Edit Plan</div>
+            <div>
+              <div style={{ fontSize: 12, color: '#8d968f', fontWeight: 600, marginBottom: 6 }}>ชื่อ Plan</div>
+              <input value={editPlan.name} onChange={e => setEditPlan(p => ({ ...p, name: e.target.value }))}
+                style={{ width: '100%', border: '1.5px solid #e3e6e0', borderRadius: 12, padding: '12px 14px', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, color: '#15271f', outline: 'none' }} />
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button onClick={() => setEditPlan(null)} style={{ flex: 1, border: '1.5px solid #e3e6e0', background: '#fff', color: '#5d7167', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, padding: 14, borderRadius: 14, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={savePlan} style={{ flex: 2, border: 'none', background: '#0caa78', color: '#fff', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, padding: 14, borderRadius: 14, cursor: 'pointer' }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete plan confirm */}
+      {confirmDeletePlan && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(21,39,31,.55)', display: 'flex', alignItems: 'flex-end', zIndex: 100 }}
+          onClick={() => setConfirmDeletePlan(false)}>
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', background: '#fff', borderRadius: '28px 28px 0 0', padding: '24px 20px 36px' }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: '#15271f', marginBottom: 8 }}>Delete Plan?</div>
+            <div style={{ fontSize: 13.5, color: '#6b746e', marginBottom: 24 }}>ลบ Plan และงวดทั้งหมด {allBills.length} งวด ไม่สามารถกู้คืนได้</div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setConfirmDeletePlan(false)} style={{ flex: 1, border: '1.5px solid #e3e6e0', background: '#fff', color: '#5d7167', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, padding: 14, borderRadius: 14, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={deletePlan} style={{ flex: 1, border: 'none', background: '#e0564f', color: '#fff', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, padding: 14, borderRadius: 14, cursor: 'pointer' }}>Delete</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Confirm dialog */}

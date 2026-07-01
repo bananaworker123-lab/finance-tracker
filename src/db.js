@@ -34,6 +34,7 @@ export const db = {
     get: (id) => supabase.from('installments').select('*').eq('id', id).single().then(r => r.data),
     add: (row) => mutate(supabase.from('installments').insert(row).select().single()).then(r => r.data?.id),
     update: (id, patch) => mutate(supabase.from('installments').update(patch).eq('id', id)),
+    delete: (id) => mutate(supabase.from('installments').delete().eq('id', id)),
   },
   categories: {
     toArray: () => supabase.from('categories').select('*').then(r => r.data || []),
