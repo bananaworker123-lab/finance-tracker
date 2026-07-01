@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLiveQuery } from '../useQuery';
 import { db } from '../db';
 import { DEFAULT_CATEGORIES, baht, fmt } from '../utils';
+import MoneyInput from './MoneyInput';
 
 const TABS = [
   { key: 'income',      label: 'Income' },
@@ -25,6 +26,12 @@ export default function AddSheet({ type, onClose }) {
   // Bill fields
   const [billName, setBillName] = useState('');
   const [dueDate, setDueDate] = useState(nextMonthEndStr());
+  const [selectedTemplateId, setSelectedTemplateId] = useState(null);
+
+  // Template management
+  const [showAddTemplate, setShowAddTemplate] = useState(false);
+  const [newTplName, setNewTplName] = useState('');
+  const [editingTpl, setEditingTpl] = useState(null); // {id, name}
 
   // Installment fields
   const [instName, setInstName] = useState('');
@@ -36,6 +43,19 @@ export default function AddSheet({ type, onClose }) {
   const [draftPeriods, setDraftPeriods] = useState('');
 
   const allCategories = useLiveQuery(() => db.categories.toArray(), [], 'categories') || DEFAULT_CATEGORIES;
+  const templates = useLiveQuery(() => db.bill_templates.toArray(), [], 'bill_templates') || [];
+  const allBills = useLiveQuery(() => db.bills.toArray(), [], 'bills') || [];
+
+  // template ที่ใช้ไปแล้วเดือนนี้ (ทุก status)
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  const usedTemplateIds = new Set(
+    allBills
+      .filter(b => b.template_id && new Date(b.due_date) >= monthStart && new Date(b.due_date) <= monthEnd)
+      .map(b => b.template_id)
+  );
+  const availableTemplates = templates.filter(t => !usedTemplateIds.has(t.id));
   const categories = (() => {
     if (tab === 'income')      return allCategories.filter(c => c.type === 'income');
     if (tab === 'expense')     return allCategories.filter(c => c.type === 'expense' || !c.type);
@@ -62,6 +82,7 @@ export default function AddSheet({ type, onClose }) {
       const meta = categories.find(c => c.name === category) || {};
       await db.bills.add({
         installment_id: null,
+        template_id: selectedTemplateId || null,
         name: billName,
         emoji: meta.emoji || '📋',
         tile: meta.color || '#eef0ec',
@@ -176,10 +197,9 @@ export default function AddSheet({ type, onClose }) {
             <div style={{ fontSize: 12.5, color: '#8d968f', fontWeight: 600 }}>Amount (THB)</div>
             <div style={{ position: 'relative', display: 'inline-block' }}>
               <span style={{ fontSize: 44, fontWeight: 800, color: '#15271f', letterSpacing: -1 }}>฿</span>
-              <input
-                type="number"
+              <MoneyInput
                 value={amount}
-                onChange={e => setAmount(e.target.value)}
+                onChange={setAmount}
                 placeholder="0"
                 style={{
                   fontSize: 44, fontWeight: 800, color: '#15271f', letterSpacing: -1,
@@ -211,6 +231,99 @@ export default function AddSheet({ type, onClose }) {
         {/* Bill form */}
         {tab === 'bill' && (
           <div>
+            {/* Template picker */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: '#15271f' }}>รายการประจำ</span>
+                <button onClick={() => { setShowAddTemplate(t => !t); setNewTplName(''); }} style={{
+                  border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                  fontSize: 12, fontWeight: 700, color: '#0caa78', background: '#e3f3ec',
+                  padding: '5px 11px', borderRadius: 10,
+                }}>+ เพิ่มรายการ</button>
+              </div>
+
+              {/* Add template form */}
+              {showAddTemplate && (
+                <div style={{ background: '#fff', borderRadius: 14, padding: '13px 14px', marginBottom: 10, display: 'flex', gap: 8 }}>
+                  <input value={newTplName} onChange={e => setNewTplName(e.target.value)}
+                    placeholder="ชื่อรายการ เช่น Visa KBank"
+                    style={{ flex: 1, border: '1.5px solid #e3e6e0', borderRadius: 10, padding: '8px 12px', fontFamily: 'inherit', fontSize: 13.5, outline: 'none', color: '#15271f' }} />
+                  <button onClick={async () => {
+                    if (!newTplName.trim()) return;
+                    await db.bill_templates.add({ name: newTplName.trim(), emoji: '📋', tile: '#eef0ec', category: 'Other' });
+                    setNewTplName(''); setShowAddTemplate(false);
+                  }} style={{
+                    border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                    fontSize: 13, fontWeight: 700, color: '#fff', background: '#0caa78',
+                    padding: '8px 14px', borderRadius: 10,
+                  }}>บันทึก</button>
+                </div>
+              )}
+
+              {/* Template list */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                {templates.length === 0 && (
+                  <div style={{ fontSize: 12.5, color: '#aab2ab', textAlign: 'center', padding: '10px 0' }}>ยังไม่มีรายการ กด + เพิ่มรายการ</div>
+                )}
+                {templates.map(tpl => {
+                  const used = usedTemplateIds.has(tpl.id);
+                  const selected = selectedTemplateId === tpl.id;
+                  const isEditing = editingTpl?.id === tpl.id;
+                  return (
+                    <div key={tpl.id} style={{
+                      background: selected ? '#e3f3ec' : used ? '#f7f7f5' : '#fff',
+                      borderRadius: 13, padding: '11px 13px',
+                      border: selected ? '1.5px solid #0caa78' : '1.5px solid transparent',
+                      opacity: used ? 0.5 : 1,
+                    }}>
+                      {isEditing ? (
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <input value={editingTpl.name} onChange={e => setEditingTpl(p => ({ ...p, name: e.target.value }))}
+                            style={{ flex: 1, border: '1.5px solid #0caa78', borderRadius: 9, padding: '6px 10px', fontFamily: 'inherit', fontSize: 13.5, outline: 'none', color: '#15271f' }} />
+                          <button onClick={async () => {
+                            if (!editingTpl.name.trim()) return;
+                            await db.bill_templates.update(editingTpl.id, { name: editingTpl.name.trim() });
+                            setEditingTpl(null);
+                          }} style={{ border: 'none', cursor: 'pointer', background: '#0caa78', color: '#fff', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 9 }}>บันทึก</button>
+                          <button onClick={() => setEditingTpl(null)} style={{ border: 'none', cursor: 'pointer', background: '#eef0ec', color: '#5d7167', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, padding: '6px 10px', borderRadius: 9 }}>ยกเลิก</button>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <button onClick={() => {
+                            if (used) return;
+                            if (selected) { setSelectedTemplateId(null); setBillName(''); setCategory(''); return; }
+                            setSelectedTemplateId(tpl.id);
+                            setBillName(tpl.name);
+                            setCategory(tpl.category || '');
+                          }} style={{ flex: 1, border: 'none', background: 'none', cursor: used ? 'default' : 'pointer', textAlign: 'left', padding: 0, fontFamily: 'inherit' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                              <span style={{ fontSize: 18 }}>{tpl.emoji || '📋'}</span>
+                              <span style={{ fontSize: 13.5, fontWeight: 700, color: used ? '#aab2ab' : '#15271f' }}>{tpl.name}</span>
+                              {used && <span style={{ fontSize: 10.5, fontWeight: 700, color: '#aab2ab', background: '#f0f0ee', padding: '2px 7px', borderRadius: 7 }}>ใช้แล้วเดือนนี้</span>}
+                              {selected && <span style={{ fontSize: 10.5, fontWeight: 700, color: '#0caa78' }}>✓ เลือกแล้ว</span>}
+                            </div>
+                          </button>
+                          {/* Edit / Delete — layout เหมือน History */}
+                          <button onClick={() => setEditingTpl({ id: tpl.id, name: tpl.name })} style={{
+                            border: 'none', cursor: 'pointer', width: 30, height: 30, borderRadius: 9,
+                            background: '#f4f3ef', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                          }}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5d7167" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+                          </button>
+                          <button onClick={() => db.bill_templates.delete(tpl.id)} style={{
+                            border: 'none', cursor: 'pointer', width: 30, height: 30, borderRadius: 9,
+                            background: '#fef2f1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                          }}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e0564f" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             <CategoryGrid categories={categories} selected={category} onSelect={setCategory} />
             <div style={{ background: '#fff', borderRadius: 16, overflow: 'hidden' }}>
               <Row label="Bill name">
@@ -277,7 +390,7 @@ export default function AddSheet({ type, onClose }) {
                 <div style={{ fontSize: 13.5, fontWeight: 800, color: '#15271f', marginBottom: 16 }}>New segment</div>
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 12, color: '#8d968f', fontWeight: 600, marginBottom: 7 }}>Amount / payment (THB)</div>
-                  <input type="number" value={draftAmt} onChange={e => setDraftAmt(e.target.value)} placeholder="0"
+                  <MoneyInput value={draftAmt} onChange={setDraftAmt} placeholder="0"
                     style={{ width: '100%', border: '1.5px solid #e3e6e0', borderRadius: 12, padding: '13px 15px', fontFamily: 'inherit', fontSize: 17, fontWeight: 800, color: '#15271f', background: '#fafbf9', outline: 'none' }} />
                 </div>
                 <div style={{ marginBottom: 16 }}>

@@ -38,6 +38,12 @@ export const db = {
   categories: {
     toArray: () => supabase.from('categories').select('*').then(r => r.data || []),
   },
+  bill_templates: {
+    toArray: () => supabase.from('bill_templates').select('*').then(r => r.data || []),
+    add: (row) => mutate(supabase.from('bill_templates').insert(row).select().single()).then(r => r.data?.id),
+    update: (id, patch) => mutate(supabase.from('bill_templates').update(patch).eq('id', id)),
+    delete: (id) => mutate(supabase.from('bill_templates').delete().eq('id', id)),
+  },
 };
 
 export async function updateOverdueBills() {

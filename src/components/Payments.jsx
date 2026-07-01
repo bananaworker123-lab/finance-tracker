@@ -2,11 +2,14 @@ import { useState, useRef } from 'react';
 import { useLiveQuery } from '../useQuery';
 import { db } from '../db';
 import { baht, whenStr, statusBadge, formatDate } from '../utils';
+import MoneyInput from './MoneyInput';
 
 export default function Payments({ onOpenPlan, onOpenAdd }) {
   const [tab, setTab] = useState('all'); // all | bills | installments
   const [statusFilter, setStatusFilter] = useState('all'); // all | upcoming | overdue | paid
   const payingIds = useRef(new Set());
+  const [editBill, setEditBill] = useState(null);
+  const [deleteBillId, setDeleteBillId] = useState(null);
 
   const bills = useLiveQuery(() => db.bills.toArray(), [], 'bills');
   const installments = useLiveQuery(() => db.installments.toArray(), [], 'installments');
@@ -30,6 +33,22 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
   const unpaidCount = standaloneBills.filter(b => b.status !== 'paid' && b.status !== 'cancelled').length;
   const unpaidInstCount = installments.length;
   const unpaidTotal = [...standaloneBills, ...instBills].filter(b => b.status !== 'paid' && b.status !== 'cancelled').reduce((s, b) => s + b.amount, 0);
+
+  async function saveEditBill() {
+    const amt = parseFloat(editBill.amount);
+    if (!amt || amt <= 0) return;
+    await db.bills.update(editBill.id, {
+      amount: amt,
+      name: editBill.name,
+      due_date: new Date(editBill.due_date).toISOString(),
+    });
+    setEditBill(null);
+  }
+
+  async function confirmDeleteBill() {
+    await db.bills.delete(deleteBillId);
+    setDeleteBillId(null);
+  }
 
   async function markPaid(billId) {
     if (payingIds.current.has(billId)) return;
@@ -131,9 +150,25 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
                     {bill.status === 'paid' ? `Paid · ${formatDate(bill.paid_date)}` : w.text}
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: 15.5, fontWeight: 800, color: '#15271f' }}>{baht(bill.paid_amount || bill.amount)}</div>
-                  <div style={{ display: 'inline-block', marginTop: 4, fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: b.bg, color: b.color }}>{b.label}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 15.5, fontWeight: 800, color: '#15271f' }}>{baht(bill.paid_amount || bill.amount)}</div>
+                    <div style={{ display: 'inline-block', marginTop: 4, fontSize: 10.5, fontWeight: 700, padding: '2px 8px', borderRadius: 8, background: b.bg, color: b.color }}>{b.label}</div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <button onClick={() => setEditBill({ ...bill, due_date: new Date(bill.due_date).toISOString().split('T')[0] })} style={{
+                      border: 'none', cursor: 'pointer', width: 30, height: 30, borderRadius: 9,
+                      background: '#f4f3ef', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5d7167" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4Z"/></svg>
+                    </button>
+                    <button onClick={() => setDeleteBillId(bill.id)} style={{
+                      border: 'none', cursor: 'pointer', width: 30, height: 30, borderRadius: 9,
+                      background: '#fef2f1', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e0564f" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+                    </button>
+                  </div>
                 </div>
               </div>
               {notPaid && (
@@ -214,6 +249,52 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
           </div>
         )}
       </div>
+
+      {/* Edit bill modal */}
+      {editBill && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(21,39,31,.55)', display: 'flex', alignItems: 'flex-end', zIndex: 100 }}
+          onClick={() => setEditBill(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', background: '#fff', borderRadius: '28px 28px 0 0', padding: '24px 20px 36px' }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: '#15271f', marginBottom: 18 }}>Edit Bill</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 12, color: '#8d968f', fontWeight: 600, marginBottom: 6 }}>ชื่อ Bill</div>
+                <input value={editBill.name} onChange={e => setEditBill(p => ({ ...p, name: e.target.value }))}
+                  style={{ width: '100%', border: '1.5px solid #e3e6e0', borderRadius: 12, padding: '12px 14px', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, color: '#15271f', outline: 'none' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: '#8d968f', fontWeight: 600, marginBottom: 6 }}>Amount (THB)</div>
+                <MoneyInput value={editBill.amount} onChange={v => setEditBill(p => ({ ...p, amount: v }))}
+                  style={{ width: '100%', border: '1.5px solid #e3e6e0', borderRadius: 12, padding: '12px 14px', fontFamily: 'inherit', fontSize: 16, fontWeight: 700, color: '#15271f', outline: 'none' }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: '#8d968f', fontWeight: 600, marginBottom: 6 }}>Due date</div>
+                <input type="date" value={editBill.due_date} onChange={e => setEditBill(p => ({ ...p, due_date: e.target.value }))}
+                  style={{ width: '100%', border: '1.5px solid #e3e6e0', borderRadius: 12, padding: '12px 14px', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, color: '#15271f', outline: 'none' }} />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button onClick={() => setEditBill(null)} style={{ flex: 1, border: '1.5px solid #e3e6e0', background: '#fff', color: '#5d7167', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, padding: 14, borderRadius: 14, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={saveEditBill} style={{ flex: 2, border: 'none', background: '#0caa78', color: '#fff', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, padding: 14, borderRadius: 14, cursor: 'pointer' }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirm */}
+      {deleteBillId && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(21,39,31,.55)', display: 'flex', alignItems: 'flex-end', zIndex: 100 }}
+          onClick={() => setDeleteBillId(null)}>
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', background: '#fff', borderRadius: '28px 28px 0 0', padding: '24px 20px 36px' }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: '#15271f', marginBottom: 8 }}>Delete Bill?</div>
+            <div style={{ fontSize: 13.5, color: '#6b746e', marginBottom: 24 }}>ไม่สามารถกู้คืนได้</div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setDeleteBillId(null)} style={{ flex: 1, border: '1.5px solid #e3e6e0', background: '#fff', color: '#5d7167', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, padding: 14, borderRadius: 14, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={confirmDeleteBill} style={{ flex: 1, border: 'none', background: '#e0564f', color: '#fff', fontFamily: 'inherit', fontSize: 14, fontWeight: 700, padding: 14, borderRadius: 14, cursor: 'pointer' }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useLiveQuery } from '../useQuery';
 import { db } from '../db';
 import { baht, formatDate, statusBadge } from '../utils';
+import MoneyInput from './MoneyInput';
 
 export default function PlanDetail({ planId, onBack }) {
   const paying = useRef(false);
@@ -256,12 +257,9 @@ export default function PlanDetail({ planId, onBack }) {
               {/* Inline amount editor */}
               {isEditing && (
                 <div style={{ display: 'flex', gap: 8, marginTop: 10, paddingTop: 10, borderTop: '1px solid #f0f2ef' }}>
-                  <input
-                    type="number"
+                  <MoneyInput
                     value={editingAmount}
-                    onChange={e => setEditingAmount(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && saveAmount(r)}
-                    autoFocus
+                    onChange={setEditingAmount}
                     placeholder="New amount"
                     style={{
                       flex: 1, border: '1.5px solid #0caa78', borderRadius: 10, padding: '8px 12px',

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLiveQuery } from '../useQuery';
 import { db } from '../db';
 import { baht, formatDate, monthRange, monthLabel } from '../utils';
+import MoneyInput from './MoneyInput';
 
 export default function History() {
   const [filter, setFilter] = useState('all');
@@ -173,7 +174,7 @@ export default function History() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <div style={{ fontSize: 12, color: '#8d968f', fontWeight: 600, marginBottom: 6 }}>Amount (THB)</div>
-                <input type="number" value={editTx.amount} onChange={e => setEditTx(p => ({ ...p, amount: e.target.value }))}
+                <MoneyInput value={editTx.amount} onChange={v => setEditTx(p => ({ ...p, amount: v }))}
                   style={{ width: '100%', border: '1.5px solid #e3e6e0', borderRadius: 12, padding: '12px 14px', fontFamily: 'inherit', fontSize: 16, fontWeight: 700, color: '#15271f', outline: 'none' }} />
               </div>
               <div>
