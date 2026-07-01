@@ -40,7 +40,7 @@ export default function AddSheet({ type, onClose }) {
     if (tab === 'income')      return allCategories.filter(c => c.type === 'income');
     if (tab === 'expense')     return allCategories.filter(c => c.type === 'expense' || !c.type);
     if (tab === 'bill')        return allCategories.filter(c => c.type === 'bill');
-    if (tab === 'installment') return allCategories.filter(c => c.type === 'bill' && (c.name === 'Credit Card' || c.name === 'Vehicle'));
+    if (tab === 'installment') return allCategories.filter(c => c.name === 'Credit Card' || c.name === 'Vehicle' || c.name === 'Shopping');
     return allCategories;
   })();
 
@@ -86,16 +86,16 @@ export default function AddSheet({ type, onClose }) {
         segments: segments.map(s => ({ amount_per_period: s.amount, periods: s.periods })),
         total_installments: totalInstallments,
       });
-      // Generate bills
+      // Generate bills (month is 0-indexed in Date constructor)
       const [sy, sm] = startMonth.split('-').map(Number);
-      let mi = sm, yr = sy, idx = 0;
+      let mi = sm - 1, yr = sy, idx = 0;
+      const billRows = [];
+      const now = new Date();
       for (const seg of segments) {
         for (let k = 0; k < seg.periods; k++) {
           idx++;
           const dDate = new Date(yr, mi, parseInt(dueDay));
-          const now = new Date();
-          const status = dDate < now ? 'overdue' : 'upcoming';
-          await db.bills.add({
+          billRows.push({
             installment_id: instId,
             name: `${instName} · Payment ${idx}`,
             emoji: meta.emoji || '📋',
@@ -103,7 +103,7 @@ export default function AddSheet({ type, onClose }) {
             amount: seg.amount,
             due_date: dDate.toISOString(),
             category: category || 'Other',
-            status,
+            status: dDate < now ? 'overdue' : 'upcoming',
             note: '',
             installment_index: idx,
           });
@@ -111,6 +111,7 @@ export default function AddSheet({ type, onClose }) {
           if (mi > 11) { mi = 0; yr++; }
         }
       }
+      await db.bills.addBatch(billRows);
     }
     onClose();
   }

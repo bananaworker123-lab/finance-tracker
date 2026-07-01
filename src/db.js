@@ -1,19 +1,24 @@
 import { supabase } from './supabase';
+import { notifyChange } from './useQuery';
 
-// ─── transactions ────────────────────────────────────────────────────────────
+function mutate(promise) {
+  return promise.then(r => { notifyChange(); return r; });
+}
+
 export const db = {
   transactions: {
     toArray: () => supabase.from('transactions').select('*').then(r => r.data || []),
-    add: (row) => supabase.from('transactions').insert(row).select().single().then(r => r.data?.id),
-    update: (id, patch) => supabase.from('transactions').update(patch).eq('id', id),
-    delete: (id) => supabase.from('transactions').delete().eq('id', id),
+    add: (row) => mutate(supabase.from('transactions').insert(row).select().single()).then(r => r.data?.id),
+    update: (id, patch) => mutate(supabase.from('transactions').update(patch).eq('id', id)),
+    delete: (id) => mutate(supabase.from('transactions').delete().eq('id', id)),
   },
   bills: {
     toArray: () => supabase.from('bills').select('*').then(r => r.data || []),
     get: (id) => supabase.from('bills').select('*').eq('id', id).single().then(r => r.data),
-    add: (row) => supabase.from('bills').insert(row).select().single().then(r => r.data?.id),
-    update: (id, patch) => supabase.from('bills').update(patch).eq('id', id),
-    delete: (id) => supabase.from('bills').delete().eq('id', id),
+    add: (row) => mutate(supabase.from('bills').insert(row).select().single()).then(r => r.data?.id),
+    addBatch: (rows) => mutate(supabase.from('bills').insert(rows)),
+    update: (id, patch) => mutate(supabase.from('bills').update(patch).eq('id', id)),
+    delete: (id) => mutate(supabase.from('bills').delete().eq('id', id)),
     where: (col) => ({
       equals: (val) => ({
         toArray: () => supabase.from('bills').select('*').eq(col, val).then(r => r.data || []),
@@ -27,8 +32,8 @@ export const db = {
   installments: {
     toArray: () => supabase.from('installments').select('*').then(r => r.data || []),
     get: (id) => supabase.from('installments').select('*').eq('id', id).single().then(r => r.data),
-    add: (row) => supabase.from('installments').insert(row).select().single().then(r => r.data?.id),
-    update: (id, patch) => supabase.from('installments').update(patch).eq('id', id),
+    add: (row) => mutate(supabase.from('installments').insert(row).select().single()).then(r => r.data?.id),
+    update: (id, patch) => mutate(supabase.from('installments').update(patch).eq('id', id)),
   },
   categories: {
     toArray: () => supabase.from('categories').select('*').then(r => r.data || []),
@@ -47,4 +52,5 @@ export async function updateOverdueBills() {
       await supabase.from('bills').update({ status: 'overdue' }).eq('id', bill.id);
     }
   }
+  notifyChange();
 }

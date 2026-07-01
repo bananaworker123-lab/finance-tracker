@@ -8,11 +8,12 @@ export default function BottomNav({ screen, onGo, onOpenAdd }) {
 
   return (
     <div style={{
-      position: 'absolute', left: 0, right: 0, bottom: 0, height: 92,
+      position: 'fixed', left: 0, right: 0, bottom: 0,
       background: 'rgba(244,243,239,.92)', backdropFilter: 'blur(14px)',
       borderTop: '1px solid rgba(20,40,30,.06)',
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-      padding: '14px 14px 0', zIndex: 20,
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      padding: '10px 14px calc(10px + env(safe-area-inset-bottom))',
+      zIndex: 20,
     }}>
       <NavBtn color={col('dashboard')} label="Home" onClick={() => onGo('dashboard')}>
         <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

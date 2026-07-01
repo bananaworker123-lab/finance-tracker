@@ -1,7 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from './supabase';
 
-// แทนที่ useLiveQuery — ดึงข้อมูลครั้งแรก แล้ว subscribe real-time จาก Supabase
+// dispatch นี้หลังทุก mutation เพื่อให้ทุก hook โหลดข้อมูลใหม่
+export function notifyChange() {
+  window.dispatchEvent(new Event('db-change'));
+}
+
 export function useLiveQuery(fetcher, deps = [], table = null) {
   const [data, setData] = useState(undefined);
 
@@ -15,14 +18,11 @@ export function useLiveQuery(fetcher, deps = [], table = null) {
     load();
   }, [load]);
 
+  // re-fetch ทุกครั้งที่มี mutation ในแอป
   useEffect(() => {
-    if (!table) return;
-    const channel = supabase
-      .channel(`rt-${table}-${Math.random()}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table }, load)
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [table, load]);
+    window.addEventListener('db-change', load);
+    return () => window.removeEventListener('db-change', load);
+  }, [load]);
 
   return data;
 }
