@@ -39,7 +39,7 @@ export default function AddSheet({ type, onClose }) {
   const categories = (() => {
     if (tab === 'income')      return allCategories.filter(c => c.type === 'income');
     if (tab === 'expense')     return allCategories.filter(c => c.type === 'expense' || !c.type);
-    if (tab === 'bill')        return allCategories.filter(c => c.type === 'bill');
+    if (tab === 'bill')        return allCategories.filter(c => c.type === 'bill' || c.name === 'Shopping');
     if (tab === 'installment') return allCategories.filter(c => c.name === 'Credit Card' || c.name === 'Vehicle' || c.name === 'Shopping');
     return allCategories;
   })();

@@ -23,19 +23,32 @@ export default function Dashboard({ onOpenAdd, onGoPay, onGoSummary }) {
 
   const balance = totalIncome - totalExpense - paidBillsTotal;
 
-  const unpaidBills = bills.filter(b => b.status !== 'paid' && b.status !== 'cancelled');
-  const pendingTotal = unpaidBills.reduce((s, b) => s + b.amount, 0);
+  // Pending = เฉพาะเดือนนี้เท่านั้น
+  const unpaidAll = bills.filter(b => b.status !== 'paid' && b.status !== 'cancelled');
+  const pendingThisMonth = unpaidAll.filter(b => {
+    const d = new Date(b.due_date);
+    return d >= start && d <= end;
+  });
+  const pendingTotal = pendingThisMonth.reduce((s, b) => s + b.amount, 0);
   const safeToSpend = balance - pendingTotal;
+
+  // Plan debt = ยอดงวดที่ยังไม่จ่ายในเดือนอนาคต (หลังเดือนนี้)
+  const futurePlanBills = bills.filter(b =>
+    b.installment_id &&
+    b.status !== 'paid' &&
+    b.status !== 'cancelled' &&
+    new Date(b.due_date) > end
+  );
+  const planDebt = futurePlanBills.reduce((s, b) => s + b.amount, 0);
 
   const now = new Date();
   const in7 = new Date(now); in7.setDate(now.getDate() + 7);
-  const dueSoon = unpaidBills
+  const dueSoon = unpaidAll
     .filter(b => new Date(b.due_date) <= in7)
     .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))
     .slice(0, 3);
 
   const overdueCount = bills.filter(b => b.status === 'overdue').length;
-  const dueSoonCount = dueSoon.length;
   const notifCount = overdueCount + dueSoon.filter(b => b.status !== 'overdue').length;
 
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -97,15 +110,15 @@ export default function Dashboard({ onOpenAdd, onGoPay, onGoSummary }) {
         </div>
       </div>
 
-      {/* Pending cards */}
+      {/* Pending + Safe to spend — เดือนนี้เท่านั้น */}
       <div style={{ display: 'flex', gap: 13, marginTop: 13 }}>
         <div style={{ flex: 1, background: '#15271f', borderRadius: 22, padding: '17px 18px', color: '#fff' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#9fb3a7', fontWeight: 600 }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#e8a13a', display: 'inline-block' }} />
-            Pending payments
+            Pending this month
           </div>
           <div style={{ fontSize: 23, fontWeight: 800, marginTop: 8, letterSpacing: '-.5px' }}>{baht(pendingTotal)}</div>
-          <div style={{ fontSize: 11.5, color: '#8a9d92', marginTop: 2, fontWeight: 500 }}>Upcoming + installments</div>
+          <div style={{ fontSize: 11.5, color: '#8a9d92', marginTop: 2, fontWeight: 500 }}>Bills due in {currentMonth}</div>
         </div>
         <div style={{ flex: 1, background: '#fff', borderRadius: 22, padding: '17px 18px', boxShadow: '0 14px 34px -26px rgba(20,40,30,.4)' }}>
           <div style={{ fontSize: 12, color: '#8d968f', fontWeight: 600 }}>Balance after pending</div>
@@ -113,6 +126,29 @@ export default function Dashboard({ onOpenAdd, onGoPay, onGoSummary }) {
           <div style={{ fontSize: 11.5, color: '#0caa78', marginTop: 2, fontWeight: 600 }}>Safe to spend</div>
         </div>
       </div>
+
+      {/* Plan debt — ยอดหนี้งวดอนาคต */}
+      {planDebt > 0 && (
+        <div onClick={onGoPay} style={{
+          marginTop: 13, borderRadius: 22, padding: '17px 18px', cursor: 'pointer',
+          background: 'linear-gradient(135deg,#2d1f3d,#4a2060)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#c9aee8', fontWeight: 600 }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#b47fe0', display: 'inline-block' }} />
+              Plan debt (future)
+            </div>
+            <div style={{ fontSize: 23, fontWeight: 800, color: '#fff', marginTop: 8, letterSpacing: '-.5px' }}>{baht(planDebt)}</div>
+            <div style={{ fontSize: 11.5, color: '#a98ccc', marginTop: 2, fontWeight: 500 }}>
+              {futurePlanBills.length} payments remaining
+            </div>
+          </div>
+          <div style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+          </div>
+        </div>
+      )}
 
       {/* Due soon */}
       {dueSoon.length > 0 && (

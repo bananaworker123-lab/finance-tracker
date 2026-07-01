@@ -137,7 +137,7 @@ export default function PlanDetail({ planId, onBack }) {
           <div style={{ width: 54, height: 54, borderRadius: 17, background: inst.tile, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>{inst.emoji}</div>
           <div>
             <div style={{ fontSize: 19, fontWeight: 800, color: '#15271f' }}>{inst.name}</div>
-            <div style={{ fontSize: 12.5, color: '#9aa39c', fontWeight: 500, marginTop: 2 }}>Installment plan</div>
+            <div style={{ fontSize: 12.5, color: '#9aa39c', fontWeight: 500, marginTop: 2 }}>Plan</div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', margin: '18px 0 8px' }}>
