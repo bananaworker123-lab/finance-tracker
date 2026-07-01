@@ -5,6 +5,8 @@ export const db = {
   transactions: {
     toArray: () => supabase.from('transactions').select('*').then(r => r.data || []),
     add: (row) => supabase.from('transactions').insert(row).select().single().then(r => r.data?.id),
+    update: (id, patch) => supabase.from('transactions').update(patch).eq('id', id),
+    delete: (id) => supabase.from('transactions').delete().eq('id', id),
   },
   bills: {
     toArray: () => supabase.from('bills').select('*').then(r => r.data || []),
