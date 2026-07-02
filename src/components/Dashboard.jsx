@@ -109,6 +109,13 @@ export default function Dashboard({ onOpenAdd, onGoPay, onGoSummary }) {
               </div>
               <div style={{ fontSize: 16, fontWeight: 700, color: '#15271f', marginTop: 2 }}>{baht(totalExpense + paidBillsTotal)}</div>
             </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#1a6ea8', fontSize: 12, fontWeight: 700 }}>
+                <span>🐷</span>
+                Saving
+              </div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#15271f', marginTop: 2 }}>{baht(totalSaving)}</div>
+            </div>
           </div>
           <SparkBars income={totalIncome} expense={totalExpense + paidBillsTotal} />
         </div>
