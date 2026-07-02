@@ -25,8 +25,16 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
     return true;
   });
 
-  const filteredInst = installments.filter(() => {
+  const filteredInst = installments.filter(inst => {
     if (tab === 'bills') return false;
+    if (statusFilter !== 'all') {
+      const ib = instBills.filter(b => b.installment_id === inst.id);
+      const paid = ib.filter(b => b.status === 'paid').length;
+      const done = ib.length > 0 && paid >= ib.length;
+      const hasOverdue = ib.some(b => b.status === 'overdue');
+      const s = done ? 'paid' : hasOverdue ? 'overdue' : 'upcoming';
+      if (s !== statusFilter) return false;
+    }
     return true;
   });
 
