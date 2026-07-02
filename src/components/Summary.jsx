@@ -54,7 +54,22 @@ export default function Summary() {
     }));
 
   const incomeBreakdown = toBreakdown(incomeMap, totalIncome);
-  const expenseBreakdown = toBreakdown(expenseMap, totalExpense);
+  const expenseBreakdown = [
+    ...toBreakdown(expenseMap, totalExpense + totalPending),
+    ...(totalPending > 0 ? [{
+      name: 'Pending bills', amount: totalPending,
+      pct: totalExpense + totalPending > 0 ? Math.round(totalPending / (totalExpense + totalPending) * 100) : 0,
+      emoji: '⏳', tile: '#fff8ee',
+    }] : []),
+  ];
+  const expenseTotal = totalExpense + totalPending;
+
+  const savingMap = {};
+  monthTx.filter(t => t.type === 'saving').forEach(t => {
+    const key = t.category || 'Saving';
+    savingMap[key] = (savingMap[key] || 0) + t.amount;
+  });
+  const savingBreakdown = toBreakdown(savingMap, totalSaving);
 
   // Chart: last 6 months
   const chartData = Array.from({ length: 6 }, (_, i) => {
@@ -131,16 +146,8 @@ export default function Summary() {
 
       {/* Category breakdown */}
       <Section title="Income" color="#0caa78" total={totalIncome} items={incomeBreakdown} />
-      <Section title="Expense" color="#e0564f" total={totalExpense} items={expenseBreakdown}
-        extra={totalPending > 0 ? { label: 'Pending bills', amount: totalPending, emoji: '⏳', tile: '#fff8ee' } : null} />
-      {totalSaving > 0 && (
-        <div style={{ marginTop: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#1a6ea8' }}>🐷 Saving</span>
-            <span style={{ fontSize: 14, fontWeight: 800, color: '#15271f' }}>{baht(totalSaving)}</span>
-          </div>
-        </div>
-      )}
+      <Section title="Expense" color="#e0564f" total={expenseTotal} items={expenseBreakdown} />
+      <Section title="🐷 Saving" color="#1a6ea8" total={totalSaving} items={savingBreakdown} />
     </div>
   );
 }
@@ -314,8 +321,8 @@ function BarChart({ data, filter, selectedIdx, onSelect }) {
   );
 }
 
-function Section({ title, color, total, items, extra }) {
-  if (items.length === 0 && !extra) return null;
+function Section({ title, color, total, items }) {
+  if (items.length === 0) return null;
   return (
     <div style={{ marginTop: 18 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -323,39 +330,36 @@ function Section({ title, color, total, items, extra }) {
         <span style={{ fontSize: 14, fontWeight: 800, color: '#15271f' }}>{baht(total)}</span>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-        {items.map(bk => (
-          <div key={bk.name} style={{ background: '#fff', borderRadius: 16, padding: '13px 14px', boxShadow: '0 8px 24px -22px rgba(20,40,30,.4)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-              <div style={{ width: 38, height: 38, borderRadius: 11, background: bk.tile, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{bk.emoji}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <span style={{ fontSize: 13.5, fontWeight: 700, color: '#15271f' }}>{bk.name}</span>
-                  <span style={{ fontSize: 13.5, fontWeight: 700, color: '#15271f' }}>{baht(bk.amount)}</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ flex: 1, height: 5, borderRadius: 3, background: '#eef0ec', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: bk.pct + '%', background: color, borderRadius: 3 }} />
+        {items.map(bk => {
+          const isPending = bk.name === 'Pending bills';
+          const nameColor = isPending ? '#e8a13a' : '#15271f';
+          const barColor = isPending ? '#e8a13a' : color;
+          return (
+            <div key={bk.name} style={{
+              background: isPending ? '#fffbf3' : '#fff',
+              borderRadius: 16, padding: '13px 14px',
+              boxShadow: '0 8px 24px -22px rgba(20,40,30,.4)',
+              border: isPending ? '1px solid #f5e0b0' : 'none',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 11, background: bk.tile, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{bk.emoji}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 13.5, fontWeight: 700, color: nameColor }}>{bk.name}</span>
+                    <span style={{ fontSize: 13.5, fontWeight: 700, color: nameColor }}>{baht(bk.amount)}</span>
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#9aa39c', width: 28, textAlign: 'right' }}>{bk.pct}%</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ flex: 1, height: 5, borderRadius: 3, background: '#eef0ec', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: bk.pct + '%', background: barColor, borderRadius: 3 }} />
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#9aa39c', width: 28, textAlign: 'right' }}>{bk.pct}%</span>
+                  </div>
+                  {isPending && <div style={{ fontSize: 11, color: '#c8954e', marginTop: 4, fontWeight: 500 }}>ยังไม่ได้จ่ายเดือนนี้</div>}
                 </div>
               </div>
             </div>
-          </div>
-        ))}
-        {extra && (
-          <div style={{ background: '#fff8ee', borderRadius: 16, padding: '13px 14px', border: '1px solid #f5e0b0' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-              <div style={{ width: 38, height: 38, borderRadius: 11, background: extra.tile, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{extra.emoji}</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 13.5, fontWeight: 700, color: '#e8a13a' }}>{extra.label}</span>
-                  <span style={{ fontSize: 13.5, fontWeight: 700, color: '#e8a13a' }}>{baht(extra.amount)}</span>
-                </div>
-                <div style={{ fontSize: 11.5, color: '#c8954e', marginTop: 4, fontWeight: 500 }}>ยังไม่ได้จ่ายเดือนนี้</div>
-              </div>
-            </div>
-          </div>
-        )}
+          );
+        })}
       </div>
     </div>
   );
