@@ -77,8 +77,10 @@ export default function Summary() {
     const txm = transactions.filter(t => { const d = new Date(t.date); return d >= ms && d <= me; });
     const paidM = paidBills.filter(b => b.paid_date && new Date(b.paid_date) >= ms && new Date(b.paid_date) <= me);
     const inc = txm.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+    const pendingM = unpaidBills.filter(b => { const d = new Date(b.due_date); return d >= ms && d <= me; });
     const exp = txm.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
-      + paidM.reduce((s, b) => s + (b.paid_amount || b.amount), 0);
+      + paidM.reduce((s, b) => s + (b.paid_amount || b.amount), 0)
+      + pendingM.reduce((s, b) => s + b.amount, 0);
     const sav = txm.filter(t => t.type === 'saving').reduce((s, t) => s + t.amount, 0);
     return { label: MONTHS[ms.getMonth()], inc, exp, sav, isCurrent: i === 5 };
   });
@@ -113,7 +115,7 @@ export default function Summary() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {[
           { label: 'Income', value: totalIncome, color: '#0caa78' },
-          { label: 'Expense', value: totalExpense, color: '#e0564f' },
+          { label: 'Expense', value: expenseTotal, color: '#e0564f' },
           { label: 'Saving', value: totalSaving, color: '#1a6ea8' },
         ].map(s => (
           <div key={s.label} style={{ flex: 1, background: '#fff', borderRadius: 16, padding: '12px 13px', boxShadow: '0 10px 28px -24px rgba(20,40,30,.4)' }}>
@@ -142,6 +144,12 @@ export default function Summary() {
           ))}
         </div>
         <BarChart data={chartData} filter={chartFilter} selectedIdx={selectedBarIdx} onSelect={setSelectedBarIdx} />
+      </div>
+
+      {/* Month indicator for breakdown */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 22, marginBottom: 2 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#15271f' }}>Breakdown</div>
+        <div style={{ fontSize: 11.5, fontWeight: 700, color: '#0caa78', background: '#e3f3ec', padding: '3px 10px', borderRadius: 20 }}>{selectedMonthName}</div>
       </div>
 
       {/* Category breakdown */}
