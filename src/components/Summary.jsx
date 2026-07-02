@@ -25,8 +25,7 @@ export default function Summary() {
 
   const monthTx = transactions.filter(t => { const d = new Date(t.date); return d >= start && d <= end; });
   const paidBillsMonth = paidBills.filter(b => b.paid_date && new Date(b.paid_date) >= start && new Date(b.paid_date) <= end);
-  // Pending always shows current month's unpaid bills
-  const pendingThisMonth = unpaidBills.filter(b => { const d = new Date(b.due_date); return d >= curStart && d <= curEnd; });
+  const pendingThisMonth = unpaidBills.filter(b => { const d = new Date(b.due_date); return d >= start && d <= end; });
 
   const totalIncome = monthTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpense = monthTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
