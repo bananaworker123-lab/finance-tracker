@@ -145,9 +145,11 @@ export default function Summary() {
   );
 }
 
-function fmt(v) {
-  if (v >= 1000) return (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + 'k';
-  return String(Math.round(v));
+const LABEL_H = 20; // height of value-label row above bars
+const Y_W = 48;     // width of y-axis label column
+
+function fmtNum(v) {
+  return Math.round(v).toLocaleString('en');
 }
 
 function BarChart({ data, filter, selectedIdx, onSelect }) {
@@ -161,86 +163,132 @@ function BarChart({ data, filter, selectedIdx, onSelect }) {
     : d.sav
   ), 1);
 
-  const getH = (v) => Math.round((v / maxVal) * CHART_H * 0.88);
+  // bars use 85% of CHART_H; top 15% is breathing room
+  const BAR_PCT = 0.85;
+  const getH = (v) => Math.round((v / maxVal) * CHART_H * BAR_PCT);
+
+  // Y grid line positions from top of chart area
+  const gridLines = [
+    { top: CHART_H * (1 - BAR_PCT), value: maxVal },
+    { top: CHART_H * (1 - BAR_PCT / 2), value: Math.round(maxVal / 2) },
+    { top: CHART_H, value: 0 },
+  ];
 
   // Trend line points in viewBox 600 x CHART_H
   const SLOT = 600 / data.length;
   const trendPoints = data.map((d, i) => {
     const v = filter === 'income' ? d.inc : filter === 'expense' ? d.exp : d.sav;
     const x = i * SLOT + SLOT / 2;
-    const y = CHART_H - Math.round((v / maxVal) * CHART_H * 0.88);
+    const y = CHART_H - getH(v);
     return { x, y, v };
   });
 
   return (
     <div>
-      <div style={{ position: 'relative' }}>
-        {/* Bars */}
-        <div style={{ display: 'flex', alignItems: 'flex-end', height: CHART_H, gap: 5 }}>
-          {data.map((d, i) => {
-            const isSelected = i === selectedIdx;
-            const val = filter === 'income' ? d.inc : filter === 'expense' ? d.exp : d.sav;
-            // Alternate label offset: even index → 18px above bar, odd → 32px above bar
-            const labelOffset = i % 2 === 0 ? 18 : 34;
-            return (
-              <div key={i} onClick={() => onSelect(i)} style={{ flex: 1, height: CHART_H, display: 'flex', alignItems: 'flex-end', gap: 2, cursor: 'pointer', position: 'relative' }}>
-                {filter === 'all' ? (
-                  <>
-                    <div style={{ flex: 1, height: getH(d.inc), background: isSelected ? '#0caa78' : d.isCurrent ? '#0caa78' : '#c8e8d6', borderRadius: '3px 3px 0 0', outline: isSelected ? '2px solid #0caa78' : 'none' }} />
-                    <div style={{ flex: 1, height: getH(d.exp), background: isSelected ? '#e0564f' : d.isCurrent ? '#e0564f' : '#f0c0bd', borderRadius: '3px 3px 0 0' }} />
-                    <div style={{ flex: 1, height: getH(d.sav), background: isSelected ? '#1a6ea8' : d.isCurrent ? '#1a6ea8' : '#a8c8e8', borderRadius: '3px 3px 0 0' }} />
-                  </>
-                ) : (
-                  <div style={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', height: CHART_H, position: 'relative' }}>
-                    {/* Floating value label — alternating height */}
-                    {val > 0 && (
-                      <div style={{
-                        position: 'absolute',
-                        bottom: getH(val) + labelOffset,
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        fontSize: 9,
-                        fontWeight: 700,
-                        color: isSelected ? color : color + 'bb',
-                        whiteSpace: 'nowrap',
-                        pointerEvents: 'none',
-                        lineHeight: 1,
-                      }}>
-                        {fmt(val)}
-                      </div>
-                    )}
-                    <div style={{
-                      width: '40%',
-                      height: getH(val),
-                      background: isSelected ? color : d.isCurrent ? color : color + '55',
-                      borderRadius: '4px 4px 0 0',
-                      boxShadow: isSelected ? `0 0 0 2px ${color}44` : 'none',
-                    }} />
-                  </div>
-                )}
-              </div>
-            );
-          })}
+      {/* Value label row + chart side by side with Y-axis */}
+      <div style={{ display: 'flex' }}>
+        {/* Y-axis labels */}
+        <div style={{ width: Y_W, flexShrink: 0, position: 'relative', height: LABEL_H + CHART_H }}>
+          {gridLines.map((g, i) => (
+            <div key={i} style={{
+              position: 'absolute',
+              top: LABEL_H + g.top,
+              right: 6,
+              transform: 'translateY(-50%)',
+              fontSize: 9, fontWeight: 600, color: '#c0c8c0', textAlign: 'right', lineHeight: 1,
+            }}>
+              {fmtNum(g.value)}
+            </div>
+          ))}
         </div>
 
-        {/* Trend line SVG — only for single filter */}
-        {filter !== 'all' && (
-          <svg viewBox={`0 0 600 ${CHART_H}`} preserveAspectRatio="none"
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: CHART_H, pointerEvents: 'none' }}>
-            <polyline
-              points={trendPoints.map(p => `${p.x},${p.y}`).join(' ')}
-              fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8"
-            />
-            {trendPoints.map((p, i) => (
-              <circle key={i} cx={p.x} cy={p.y} r={i === selectedIdx ? 5.5 : data[i].isCurrent ? 5 : 3.5}
-                fill={i === selectedIdx ? color : data[i].isCurrent ? color : '#fff'} stroke={color} strokeWidth="2" />
+        {/* Chart column */}
+        <div style={{ flex: 1 }}>
+          {/* Label row above bars — only for single filter, alternating top/bottom */}
+          <div style={{ display: 'flex', height: LABEL_H, alignItems: 'flex-end', gap: 5, paddingBottom: 2 }}>
+            {data.map((d, i) => {
+              const val = filter === 'income' ? d.inc : filter === 'expense' ? d.exp : d.sav;
+              const showLabel = filter !== 'all' && val > 0;
+              // alternate: odd index shifts down into next gap (achieved via marginBottom)
+              const isOdd = i % 2 === 1;
+              return (
+                <div key={i} style={{ flex: 1, textAlign: 'center', position: 'relative', height: LABEL_H }}>
+                  {showLabel && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: isOdd ? -4 : 2,
+                      left: 0, right: 0,
+                      fontSize: 8.5, fontWeight: 700, lineHeight: 1,
+                      color: i === selectedIdx ? color : color + '99',
+                      whiteSpace: 'nowrap', overflow: 'hidden',
+                    }}>
+                      {fmtNum(val)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Bars area */}
+          <div style={{ position: 'relative', height: CHART_H }}>
+            {/* Grid lines */}
+            {gridLines.map((g, i) => (
+              <div key={i} style={{
+                position: 'absolute', left: 0, right: 0, top: g.top,
+                borderTop: `1px dashed ${i === 2 ? '#d8ddd8' : '#eff1ef'}`,
+                pointerEvents: 'none',
+              }} />
             ))}
-          </svg>
-        )}
+
+            {/* Bars */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', height: CHART_H, gap: 5 }}>
+              {data.map((d, i) => {
+                const isSelected = i === selectedIdx;
+                return (
+                  <div key={i} onClick={() => onSelect(i)} style={{ flex: 1, height: CHART_H, display: 'flex', alignItems: 'flex-end', gap: 2, cursor: 'pointer' }}>
+                    {filter === 'all' ? (
+                      <>
+                        <div style={{ flex: 1, height: getH(d.inc), background: isSelected ? '#0caa78' : d.isCurrent ? '#0caa78' : '#c8e8d6', borderRadius: '3px 3px 0 0' }} />
+                        <div style={{ flex: 1, height: getH(d.exp), background: isSelected ? '#e0564f' : d.isCurrent ? '#e0564f' : '#f0c0bd', borderRadius: '3px 3px 0 0' }} />
+                        <div style={{ flex: 1, height: getH(d.sav), background: isSelected ? '#1a6ea8' : d.isCurrent ? '#1a6ea8' : '#a8c8e8', borderRadius: '3px 3px 0 0' }} />
+                      </>
+                    ) : (
+                      <div style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-end', height: CHART_H }}>
+                        <div style={{
+                          width: '40%',
+                          height: getH(filter === 'income' ? d.inc : filter === 'expense' ? d.exp : d.sav),
+                          background: isSelected ? color : d.isCurrent ? color : color + '55',
+                          borderRadius: '4px 4px 0 0',
+                          boxShadow: isSelected ? `0 0 0 2px ${color}44` : 'none',
+                        }} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Trend line SVG — only for single filter */}
+            {filter !== 'all' && (
+              <svg viewBox={`0 0 600 ${CHART_H}`} preserveAspectRatio="none"
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: CHART_H, pointerEvents: 'none' }}>
+                <polyline
+                  points={trendPoints.map(p => `${p.x},${p.y}`).join(' ')}
+                  fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8"
+                />
+                {trendPoints.map((p, i) => (
+                  <circle key={i} cx={p.x} cy={p.y} r={i === selectedIdx ? 5.5 : data[i].isCurrent ? 5 : 3.5}
+                    fill={i === selectedIdx ? color : data[i].isCurrent ? color : '#fff'} stroke={color} strokeWidth="2" />
+                ))}
+              </svg>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Month labels */}
-      <div style={{ display: 'flex', gap: 5, marginTop: 6 }}>
+      <div style={{ display: 'flex', gap: 5, marginTop: 6, paddingLeft: Y_W }}>
         {data.map((d, i) => (
           <div key={i} onClick={() => onSelect(i)} style={{
             flex: 1, textAlign: 'center', fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
