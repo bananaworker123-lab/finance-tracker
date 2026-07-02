@@ -52,16 +52,38 @@ export default function History() {
   async function saveEdit() {
     const amt = parseFloat(editTx.amount);
     if (!amt || amt <= 0) return;
-    await db.transactions.update(editTx.id, {
-      amount: amt,
-      note: editTx.note,
-      date: new Date(editTx.date).toISOString(),
-    });
+    if (editTx.isBill) {
+      const billId = parseInt(String(editTx.id).replace('bill_', ''));
+      await db.bills.update(billId, {
+        paid_amount: amt,
+        paid_date: new Date(editTx.date).toISOString(),
+        name: editTx.note,
+      });
+    } else {
+      await db.transactions.update(editTx.id, {
+        amount: amt,
+        note: editTx.note,
+        date: new Date(editTx.date).toISOString(),
+      });
+    }
     setEditTx(null);
   }
 
   async function confirmDelete() {
-    await db.transactions.delete(deleteId);
+    if (String(deleteId).startsWith('bill_')) {
+      const billId = parseInt(String(deleteId).replace('bill_', ''));
+      const bill = await db.bills.get(billId);
+      if (bill) {
+        const isOverdue = new Date(bill.due_date) < new Date();
+        await db.bills.update(billId, {
+          status: isOverdue ? 'overdue' : 'upcoming',
+          paid_date: null,
+          paid_amount: null,
+        });
+      }
+    } else {
+      await db.transactions.delete(deleteId);
+    }
     setDeleteId(null);
   }
 
@@ -139,9 +161,7 @@ export default function History() {
                 <div style={{ fontSize: 15, fontWeight: 700, color: t.type === 'income' ? '#0caa78' : t.type === 'saving' ? '#1a6ea8' : '#15271f', whiteSpace: 'nowrap' }}>
                   {t.type === 'income' ? '+ ' : t.type === 'saving' ? '🐷 ' : '− '}{baht(t.amount)}
                 </div>
-                {/* Edit/Delete — only for real transactions, not paid bills */}
-                {!t.isBill && (
-                  <div style={{ display: 'flex', gap: 5 }}>
+                <div style={{ display: 'flex', gap: 5 }}>
                     <button onClick={() => setEditTx({ ...t, date: new Date(t.date).toISOString().split('T')[0] })} style={{
                       border: 'none', cursor: 'pointer', width: 30, height: 30, borderRadius: 9,
                       background: '#f4f3ef', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -155,7 +175,6 @@ export default function History() {
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#e0564f" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
                     </button>
                   </div>
-                )}
               </div>
             </div>
           </div>
@@ -210,8 +229,12 @@ export default function History() {
           <div onClick={e => e.stopPropagation()} style={{
             width: '100%', background: '#fff', borderRadius: '28px 28px 0 0', padding: '24px 20px 36px',
           }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: '#15271f', marginBottom: 8 }}>Delete Transaction?</div>
-            <div style={{ fontSize: 13.5, color: '#6b746e', marginBottom: 24 }}>ยอด Balance จะถูกอัปเดตทันที ไม่สามารถกู้คืนได้</div>
+            <div style={{ fontSize: 17, fontWeight: 800, color: '#15271f', marginBottom: 8 }}>
+              {String(deleteId).startsWith('bill_') ? 'Undo Payment?' : 'Delete Transaction?'}
+            </div>
+            <div style={{ fontSize: 13.5, color: '#6b746e', marginBottom: 24 }}>
+              {String(deleteId).startsWith('bill_') ? 'Bill จะกลับมาเป็น Upcoming/Overdue' : 'ยอด Balance จะถูกอัปเดตทันที ไม่สามารถกู้คืนได้'}
+            </div>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={() => setDeleteId(null)} style={{
                 flex: 1, border: '1.5px solid #e3e6e0', background: '#fff', color: '#5d7167',

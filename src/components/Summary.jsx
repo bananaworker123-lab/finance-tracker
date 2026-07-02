@@ -176,12 +176,14 @@ function BarChart({ data, filter }) {
                   <div style={{ flex: 1, height: getH(d.sav), background: d.isCurrent ? '#1a6ea8' : '#a8c8e8', borderRadius: '3px 3px 0 0' }} />
                 </>
               ) : (
-                <div style={{
-                  width: '100%',
-                  height: getH(filter === 'income' ? d.inc : filter === 'expense' ? d.exp : d.sav),
-                  background: d.isCurrent ? color : color + '55',
-                  borderRadius: '4px 4px 0 0',
-                }} />
+                <div style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-end', height: CHART_H }}>
+                  <div style={{
+                    width: '40%',
+                    height: getH(filter === 'income' ? d.inc : filter === 'expense' ? d.exp : d.sav),
+                    background: d.isCurrent ? color : color + '55',
+                    borderRadius: '4px 4px 0 0',
+                  }} />
+                </div>
               )}
             </div>
           ))}
