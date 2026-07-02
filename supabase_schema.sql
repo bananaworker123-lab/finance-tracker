@@ -80,4 +80,6 @@ insert into categories (name, emoji, color, type) values
   ('Common Fee',    '🏢', '#e7f4ec', 'bill'),
   ('Vehicle',       '🚗', '#fbeede', 'bill'),
   ('Insurance',     '🛡️', '#e3f3ec', 'bill'),
+  ('Food',          '🍔', '#fbeede', 'bill'),
+  ('Donate',        '🤝', '#e8f4ec', 'bill'),
   ('Other',         '💸', '#eef0ec', 'expense');

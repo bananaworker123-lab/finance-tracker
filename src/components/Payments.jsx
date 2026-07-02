@@ -14,7 +14,7 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
   const bills = useLiveQuery(() => db.bills.toArray(), [], 'bills');
   const installments = useLiveQuery(() => db.installments.toArray(), [], 'installments');
   const allCategories = useLiveQuery(() => db.categories.toArray(), [], 'categories') || DEFAULT_CATEGORIES;
-  const billCategories = allCategories.filter(c => c.type === 'bill' || c.type === 'expense' || !c.type);
+  const billCategories = allCategories.filter(c => c.type === 'bill');
 
   if (!bills || !installments) return <div style={{ padding: 40, color: '#8d968f', textAlign: 'center' }}>Loading...</div>;
 
@@ -176,18 +176,26 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
           const w = whenStr(bill.due_date);
           const b = statusBadge(bill.status);
           const notPaid = bill.status !== 'paid' && bill.status !== 'cancelled';
+          // Status text: keep paid-date, overdue, due-today, due-in-X-days — strip bare date
+          const statusText = bill.status === 'paid'
+            ? `Paid · ${formatDate(bill.paid_date)}`
+            : w.text.startsWith('Due in') ? w.text.split(' · ')[0]  // "Due in 2 days"
+            : w.text.startsWith('Overdue') || w.text === 'Due today' ? w.text
+            : ''; // "Due 12 Jul" → omit, date already below icon
           return (
             <div key={bill.id} style={{ background: '#fff', borderRadius: 20, padding: 15, boxShadow: '0 12px 30px -26px rgba(20,40,30,.4)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
-                <div style={{ width: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                <div style={{ width: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flexShrink: 0 }}>
                   <div style={{ width: 46, height: 46, borderRadius: 14, background: bill.tile, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>{bill.emoji}</div>
-                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#aab2ab', lineHeight: 1, whiteSpace: 'nowrap' }}>{formatShortDate(bill.due_date)}</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: '#6b746e', lineHeight: 1, whiteSpace: 'nowrap' }}>{formatShortDate(bill.due_date)}</div>
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14.5, fontWeight: 700, color: '#15271f' }}>{bill.name}</div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: bill.status === 'paid' ? '#0caa78' : w.color, marginTop: 2 }}>
-                    {bill.status === 'paid' ? `Paid · ${formatDate(bill.paid_date)}` : w.text}
-                  </div>
+                  {statusText ? (
+                    <div style={{ fontSize: 12, fontWeight: 600, color: bill.status === 'paid' ? '#0caa78' : w.color, marginTop: 2 }}>
+                      {statusText}
+                    </div>
+                  ) : null}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ textAlign: 'right' }}>
