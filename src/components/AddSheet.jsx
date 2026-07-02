@@ -7,6 +7,7 @@ import MoneyInput from './MoneyInput';
 const TABS = [
   { key: 'income',      label: 'Income' },
   { key: 'expense',     label: 'Expense' },
+  { key: 'saving',      label: 'Saving' },
   { key: 'bill',        label: 'Bill' },
   { key: 'installment', label: 'Plan' },
 ];
@@ -74,6 +75,17 @@ export default function AddSheet({ type, onClose }) {
         category,
         emoji: meta.emoji || '💸',
         tile: meta.color || '#eef0ec',
+        date: new Date(date).toISOString(),
+        note,
+      });
+    } else if (tab === 'saving') {
+      if (!amount) return;
+      await db.transactions.add({
+        type: 'saving',
+        amount: parseFloat(amount),
+        category: 'Saving',
+        emoji: '🐷',
+        tile: '#e0f0ff',
         date: new Date(date).toISOString(),
         note,
       });
@@ -151,7 +163,7 @@ export default function AddSheet({ type, onClose }) {
   const segTotalAmt = segments.reduce((s, sg) => s + sg.amount * sg.periods, 0);
   const draftTotal = parseFloat(draftAmt || 0) * parseInt(draftPeriods || 0);
 
-  const saveLabel = tab === 'expense' ? 'Add Expense' : tab === 'income' ? 'Add Income' : tab === 'bill' ? 'Add Bill' : 'Create Plan';
+  const saveLabel = tab === 'expense' ? 'Add Expense' : tab === 'income' ? 'Add Income' : tab === 'saving' ? 'Add Saving' : tab === 'bill' ? 'Add Bill' : 'Create Plan';
 
   return (
     <>
@@ -225,6 +237,20 @@ export default function AddSheet({ type, onClose }) {
                   style={{ border: 'none', outline: 'none', fontFamily: 'inherit', fontSize: 13.5, color: '#aab2ab', background: 'none', textAlign: 'right', width: '100%' }} />
               </Row>
             </div>
+          </div>
+        )}
+
+        {/* Saving form */}
+        {tab === 'saving' && (
+          <div style={{ background: '#fff', borderRadius: 16, overflow: 'hidden' }}>
+            <Row label="Date">
+              <input type="date" value={date} onChange={e => setDate(e.target.value)}
+                style={{ border: 'none', outline: 'none', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700, color: '#15271f', background: 'none', textAlign: 'right' }} />
+            </Row>
+            <Row label="Note" last>
+              <input value={note} onChange={e => setNote(e.target.value)} placeholder="Optional"
+                style={{ border: 'none', outline: 'none', fontFamily: 'inherit', fontSize: 13.5, color: '#aab2ab', background: 'none', textAlign: 'right', width: '100%' }} />
+            </Row>
           </div>
         )}
 

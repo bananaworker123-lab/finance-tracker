@@ -47,7 +47,7 @@ export default function History() {
 
   const monthList = Array.from({ length: 13 }, (_, i) => ({ label: monthLabel(i), idx: i, active: i === monthIdx }));
   const chip = (k, label) => ({ key: k, label, bg: filter === k ? '#15271f' : '#ffffff', color: filter === k ? '#ffffff' : '#6b746e' });
-  const chips = [chip('all', 'All'), chip('income', 'Income'), chip('expense', 'Expense')];
+  const chips = [chip('all', 'All'), chip('income', 'Income'), chip('expense', 'Expense'), chip('saving', 'Saving')];
 
   async function saveEdit() {
     const amt = parseFloat(editTx.amount);
@@ -136,8 +136,8 @@ export default function History() {
                 <div style={{ fontSize: 12, color: '#9aa39c', fontWeight: 500, marginTop: 2 }}>{formatDate(t.date)}</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: t.type === 'income' ? '#0caa78' : '#15271f', whiteSpace: 'nowrap' }}>
-                  {t.type === 'income' ? '+ ' : '− '}{baht(t.amount)}
+                <div style={{ fontSize: 15, fontWeight: 700, color: t.type === 'income' ? '#0caa78' : t.type === 'saving' ? '#1a6ea8' : '#15271f', whiteSpace: 'nowrap' }}>
+                  {t.type === 'income' ? '+ ' : t.type === 'saving' ? '🐷 ' : '− '}{baht(t.amount)}
                 </div>
                 {/* Edit/Delete — only for real transactions, not paid bills */}
                 {!t.isBill && (
