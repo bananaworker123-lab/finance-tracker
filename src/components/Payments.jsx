@@ -39,7 +39,9 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
   });
 
   const unpaidCount = standaloneBills.filter(b => b.status !== 'paid' && b.status !== 'cancelled').length;
-  const unpaidInstCount = installments.length;
+  const unpaidInstCount = installments.filter(inst =>
+    instBills.filter(b => b.installment_id === inst.id).some(b => b.status !== 'paid' && b.status !== 'cancelled')
+  ).length;
   const unpaidTotal = [...standaloneBills, ...instBills].filter(b => b.status !== 'paid' && b.status !== 'cancelled').reduce((s, b) => s + b.amount, 0);
 
   async function saveEditBill() {
@@ -77,7 +79,7 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
   const tabs = [
     { key: 'all', label: 'All', count: unpaidCount + unpaidInstCount },
     { key: 'bills', label: 'Bills', count: unpaidCount },
-    { key: 'installments', label: 'Plans', count: installments.length },
+    { key: 'installments', label: 'Plans', count: unpaidInstCount },
   ];
 
   // คำนวณ status ของแต่ละ installment plan
