@@ -117,7 +117,6 @@ export default function Dashboard({ onOpenAdd, onGoPay, onGoSummary }) {
               <div style={{ fontSize: 16, fontWeight: 700, color: '#15271f', marginTop: 2 }}>{baht(totalSaving)}</div>
             </div>
           </div>
-          <SparkBars income={totalIncome} expense={totalExpense + paidBillsTotal} />
         </div>
       </div>
 
@@ -158,27 +157,6 @@ export default function Dashboard({ onOpenAdd, onGoPay, onGoSummary }) {
           <div style={{ width: 36, height: 36, borderRadius: 12, background: 'rgba(255,255,255,.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
           </div>
-        </div>
-      )}
-
-      {/* Saving card */}
-      {totalSavingAllTime > 0 && (
-        <div style={{
-          marginTop: 13, borderRadius: 22, padding: '17px 18px',
-          background: 'linear-gradient(135deg,#0d3d5c,#1a6ea8)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#8ec8f0', fontWeight: 600 }}>
-              <span style={{ fontSize: 14 }}>🐷</span>
-              Total savings
-            </div>
-            <div style={{ fontSize: 23, fontWeight: 800, color: '#fff', marginTop: 8, letterSpacing: '-.5px' }}>{baht(totalSavingAllTime)}</div>
-            <div style={{ fontSize: 11.5, color: '#7ab8e0', marginTop: 2, fontWeight: 500 }}>
-              {totalSaving > 0 ? `+${baht(totalSaving)} this month` : 'Accumulated'}
-            </div>
-          </div>
-          <div style={{ fontSize: 36 }}>🐷</div>
         </div>
       )}
 
