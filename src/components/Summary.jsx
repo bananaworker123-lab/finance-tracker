@@ -8,8 +8,12 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 
 export default function Summary() {
   const [chartFilter, setChartFilter] = useState('all');
+  const [selectedBarIdx, setSelectedBarIdx] = useState(5); // 5 = current month (last in chartData)
 
-  const { start, end } = monthRange(0);
+  // chartData[i] uses monthRange(5 - i), so selected month offset = 5 - selectedBarIdx
+  const selOffset = 5 - selectedBarIdx;
+  const { start, end } = monthRange(selOffset);
+  const { start: curStart, end: curEnd } = monthRange(0);
 
   const transactions = useLiveQuery(() => db.transactions.toArray(), [], 'transactions');
   const bills = useLiveQuery(() => db.bills.toArray(), [], 'bills');
@@ -21,7 +25,8 @@ export default function Summary() {
 
   const monthTx = transactions.filter(t => { const d = new Date(t.date); return d >= start && d <= end; });
   const paidBillsMonth = paidBills.filter(b => b.paid_date && new Date(b.paid_date) >= start && new Date(b.paid_date) <= end);
-  const pendingThisMonth = unpaidBills.filter(b => { const d = new Date(b.due_date); return d >= start && d <= end; });
+  // Pending always shows current month's unpaid bills
+  const pendingThisMonth = unpaidBills.filter(b => { const d = new Date(b.due_date); return d >= curStart && d <= curEnd; });
 
   const totalIncome = monthTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const totalExpense = monthTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
@@ -63,7 +68,7 @@ export default function Summary() {
     return { label: MONTHS[ms.getMonth()], inc, exp, sav, isCurrent: i === 5 };
   });
 
-  const currentMonthName = `${MONTHS[start.getMonth()]} ${start.getFullYear()}`;
+  const selectedMonthName = `${MONTHS[start.getMonth()]} ${start.getFullYear()}`;
 
   function exportCSV() {
     const all = [
@@ -84,7 +89,7 @@ export default function Summary() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '4px 0 16px' }}>
         <div>
           <div style={{ fontSize: 24, fontWeight: 800, color: '#15271f', letterSpacing: '-.5px' }}>Summary</div>
-          <div style={{ fontSize: 13, color: '#8d968f', fontWeight: 500, marginTop: 2 }}>{currentMonthName}</div>
+          <div style={{ fontSize: 13, color: '#8d968f', fontWeight: 500, marginTop: 2 }}>{selectedMonthName}</div>
         </div>
         <button onClick={exportCSV} style={{ border: 'none', background: '#e3f3ec', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700, color: '#0caa78', padding: '8px 14px', borderRadius: 12 }}>Export CSV</button>
       </div>
@@ -121,7 +126,7 @@ export default function Summary() {
             }}>{f.label}</button>
           ))}
         </div>
-        <BarChart data={chartData} filter={chartFilter} />
+        <BarChart data={chartData} filter={chartFilter} selectedIdx={selectedBarIdx} onSelect={setSelectedBarIdx} />
       </div>
 
       {/* Category breakdown */}
@@ -140,7 +145,12 @@ export default function Summary() {
   );
 }
 
-function BarChart({ data, filter }) {
+function fmt(v) {
+  if (v >= 1000) return (v / 1000).toFixed(v % 1000 === 0 ? 0 : 1) + 'k';
+  return String(Math.round(v));
+}
+
+function BarChart({ data, filter, selectedIdx, onSelect }) {
   const colorMap = { income: '#0caa78', expense: '#e0564f', saving: '#1a6ea8' };
   const color = colorMap[filter] || '#15271f';
 
@@ -167,26 +177,50 @@ function BarChart({ data, filter }) {
       <div style={{ position: 'relative' }}>
         {/* Bars */}
         <div style={{ display: 'flex', alignItems: 'flex-end', height: CHART_H, gap: 5 }}>
-          {data.map((d, i) => (
-            <div key={i} style={{ flex: 1, height: CHART_H, display: 'flex', alignItems: 'flex-end', gap: 2 }}>
-              {filter === 'all' ? (
-                <>
-                  <div style={{ flex: 1, height: getH(d.inc), background: d.isCurrent ? '#0caa78' : '#c8e8d6', borderRadius: '3px 3px 0 0' }} />
-                  <div style={{ flex: 1, height: getH(d.exp), background: d.isCurrent ? '#e0564f' : '#f0c0bd', borderRadius: '3px 3px 0 0' }} />
-                  <div style={{ flex: 1, height: getH(d.sav), background: d.isCurrent ? '#1a6ea8' : '#a8c8e8', borderRadius: '3px 3px 0 0' }} />
-                </>
-              ) : (
-                <div style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'flex-end', height: CHART_H }}>
-                  <div style={{
-                    width: '40%',
-                    height: getH(filter === 'income' ? d.inc : filter === 'expense' ? d.exp : d.sav),
-                    background: d.isCurrent ? color : color + '55',
-                    borderRadius: '4px 4px 0 0',
-                  }} />
-                </div>
-              )}
-            </div>
-          ))}
+          {data.map((d, i) => {
+            const isSelected = i === selectedIdx;
+            const val = filter === 'income' ? d.inc : filter === 'expense' ? d.exp : d.sav;
+            // Alternate label offset: even index → 18px above bar, odd → 32px above bar
+            const labelOffset = i % 2 === 0 ? 18 : 34;
+            return (
+              <div key={i} onClick={() => onSelect(i)} style={{ flex: 1, height: CHART_H, display: 'flex', alignItems: 'flex-end', gap: 2, cursor: 'pointer', position: 'relative' }}>
+                {filter === 'all' ? (
+                  <>
+                    <div style={{ flex: 1, height: getH(d.inc), background: isSelected ? '#0caa78' : d.isCurrent ? '#0caa78' : '#c8e8d6', borderRadius: '3px 3px 0 0', outline: isSelected ? '2px solid #0caa78' : 'none' }} />
+                    <div style={{ flex: 1, height: getH(d.exp), background: isSelected ? '#e0564f' : d.isCurrent ? '#e0564f' : '#f0c0bd', borderRadius: '3px 3px 0 0' }} />
+                    <div style={{ flex: 1, height: getH(d.sav), background: isSelected ? '#1a6ea8' : d.isCurrent ? '#1a6ea8' : '#a8c8e8', borderRadius: '3px 3px 0 0' }} />
+                  </>
+                ) : (
+                  <div style={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', alignItems: 'center', height: CHART_H, position: 'relative' }}>
+                    {/* Floating value label — alternating height */}
+                    {val > 0 && (
+                      <div style={{
+                        position: 'absolute',
+                        bottom: getH(val) + labelOffset,
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        fontSize: 9,
+                        fontWeight: 700,
+                        color: isSelected ? color : color + 'bb',
+                        whiteSpace: 'nowrap',
+                        pointerEvents: 'none',
+                        lineHeight: 1,
+                      }}>
+                        {fmt(val)}
+                      </div>
+                    )}
+                    <div style={{
+                      width: '40%',
+                      height: getH(val),
+                      background: isSelected ? color : d.isCurrent ? color : color + '55',
+                      borderRadius: '4px 4px 0 0',
+                      boxShadow: isSelected ? `0 0 0 2px ${color}44` : 'none',
+                    }} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Trend line SVG — only for single filter */}
@@ -198,8 +232,8 @@ function BarChart({ data, filter }) {
               fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8"
             />
             {trendPoints.map((p, i) => (
-              <circle key={i} cx={p.x} cy={p.y} r={data[i].isCurrent ? 5 : 3.5}
-                fill={data[i].isCurrent ? color : '#fff'} stroke={color} strokeWidth="2" />
+              <circle key={i} cx={p.x} cy={p.y} r={i === selectedIdx ? 5.5 : data[i].isCurrent ? 5 : 3.5}
+                fill={i === selectedIdx ? color : data[i].isCurrent ? color : '#fff'} stroke={color} strokeWidth="2" />
             ))}
           </svg>
         )}
@@ -208,7 +242,12 @@ function BarChart({ data, filter }) {
       {/* Month labels */}
       <div style={{ display: 'flex', gap: 5, marginTop: 6 }}>
         {data.map((d, i) => (
-          <div key={i} style={{ flex: 1, textAlign: 'center', fontSize: 10.5, fontWeight: 600, color: d.isCurrent ? '#15271f' : '#aab2ab' }}>{d.label}</div>
+          <div key={i} onClick={() => onSelect(i)} style={{
+            flex: 1, textAlign: 'center', fontSize: 10.5, fontWeight: 700, cursor: 'pointer',
+            color: i === selectedIdx ? '#15271f' : d.isCurrent ? '#5d7167' : '#aab2ab',
+            borderBottom: i === selectedIdx ? '2px solid #15271f' : '2px solid transparent',
+            paddingBottom: 2,
+          }}>{d.label}</div>
         ))}
       </div>
 
