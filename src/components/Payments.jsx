@@ -80,11 +80,27 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
     { key: 'installments', label: 'Plans', count: installments.length },
   ];
 
+  // คำนวณ status ของแต่ละ installment plan
+  const instStatusCounts = { upcoming: 0, overdue: 0, paid: 0 };
+  if (tab !== 'bills') {
+    installments.forEach(inst => {
+      const ib = instBills.filter(b => b.installment_id === inst.id);
+      const paid = ib.filter(b => b.status === 'paid').length;
+      const done = ib.length > 0 && paid >= ib.length;
+      const hasOverdue = ib.some(b => b.status === 'overdue');
+      const s = done ? 'paid' : hasOverdue ? 'overdue' : 'upcoming';
+      instStatusCounts[s]++;
+    });
+  }
+
+  const billCount = (s) => tab === 'installments' ? 0 : standaloneBills.filter(b => b.status === s).length;
+  const instCount = (s) => tab === 'bills' ? 0 : instStatusCounts[s];
+
   const statusChips = [
     { key: 'all', label: 'All', count: '' },
-    { key: 'upcoming', label: 'Upcoming', count: standaloneBills.filter(b => b.status === 'upcoming').length },
-    { key: 'overdue', label: 'Overdue', count: standaloneBills.filter(b => b.status === 'overdue').length },
-    { key: 'paid', label: 'Paid', count: standaloneBills.filter(b => b.status === 'paid').length },
+    { key: 'upcoming', label: 'Upcoming', count: billCount('upcoming') + instCount('upcoming') },
+    { key: 'overdue', label: 'Overdue', count: billCount('overdue') + instCount('overdue') },
+    { key: 'paid', label: 'Paid', count: billCount('paid') + instCount('paid') },
   ];
 
   const sortedBills = [...filteredBills].sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
