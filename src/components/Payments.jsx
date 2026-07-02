@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useLiveQuery } from '../useQuery';
 import { db } from '../db';
-import { baht, whenStr, statusBadge, formatDate } from '../utils';
+import { baht, whenStr, statusBadge, formatDate, formatShortDate, DEFAULT_CATEGORIES } from '../utils';
 import MoneyInput from './MoneyInput';
 
 export default function Payments({ onOpenPlan, onOpenAdd }) {
@@ -13,6 +13,8 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
 
   const bills = useLiveQuery(() => db.bills.toArray(), [], 'bills');
   const installments = useLiveQuery(() => db.installments.toArray(), [], 'installments');
+  const allCategories = useLiveQuery(() => db.categories.toArray(), [], 'categories') || DEFAULT_CATEGORIES;
+  const billCategories = allCategories.filter(c => c.type === 'bill' || c.type === 'expense' || !c.type);
 
   if (!bills || !installments) return <div style={{ padding: 40, color: '#8d968f', textAlign: 'center' }}>Loading...</div>;
 
@@ -51,6 +53,9 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
       amount: amt,
       name: editBill.name,
       due_date: new Date(editBill.due_date).toISOString(),
+      emoji: editBill.emoji,
+      tile: editBill.tile,
+      category: editBill.category,
     });
     setEditBill(null);
   }
@@ -174,7 +179,10 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
           return (
             <div key={bill.id} style={{ background: '#fff', borderRadius: 20, padding: 15, boxShadow: '0 12px 30px -26px rgba(20,40,30,.4)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
-                <div style={{ width: 46, height: 46, borderRadius: 14, background: bill.tile, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>{bill.emoji}</div>
+                <div style={{ width: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                  <div style={{ width: 46, height: 46, borderRadius: 14, background: bill.tile, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>{bill.emoji}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 700, color: '#aab2ab', lineHeight: 1, whiteSpace: 'nowrap' }}>{formatShortDate(bill.due_date)}</div>
+                </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 14.5, fontWeight: 700, color: '#15271f' }}>{bill.name}</div>
                   <div style={{ fontSize: 12, fontWeight: 600, color: bill.status === 'paid' ? '#0caa78' : w.color, marginTop: 2 }}>
@@ -288,6 +296,19 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
           <div onClick={e => e.stopPropagation()} style={{ width: '100%', background: '#fff', borderRadius: '28px 28px 0 0', padding: '24px 20px 36px' }}>
             <div style={{ fontSize: 17, fontWeight: 800, color: '#15271f', marginBottom: 18 }}>Edit Bill</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* Icon picker */}
+              <div>
+                <div style={{ fontSize: 12, color: '#8d968f', fontWeight: 600, marginBottom: 8 }}>Icon</div>
+                <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4 }}>
+                  {billCategories.map(c => (
+                    <button key={c.name} onClick={() => setEditBill(p => ({ ...p, emoji: c.emoji, tile: c.color || c.tile, category: c.name }))} style={{
+                      flexShrink: 0, border: editBill.emoji === c.emoji ? '2px solid #0caa78' : '2px solid transparent',
+                      borderRadius: 13, background: c.color || c.tile, width: 44, height: 44,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, cursor: 'pointer',
+                    }}>{c.emoji}</button>
+                  ))}
+                </div>
+              </div>
               <div>
                 <div style={{ fontSize: 12, color: '#8d968f', fontWeight: 600, marginBottom: 6 }}>ชื่อ Bill</div>
                 <input value={editBill.name} onChange={e => setEditBill(p => ({ ...p, name: e.target.value }))}
