@@ -128,7 +128,7 @@ export default function Payments({ onOpenPlan, onOpenAdd }) {
       {/* Tab selector */}
       <div style={{ display: 'flex', gap: 6, background: '#eceee9', padding: 5, borderRadius: 16, marginBottom: 16 }}>
         {tabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{
+          <button key={t.key} onClick={() => { setTab(t.key); if (t.key === 'installments') setStatusFilter('all'); }} style={{
             flex: 1, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             fontSize: 12.5, fontWeight: 700, padding: '10px 4px', borderRadius: 12,
