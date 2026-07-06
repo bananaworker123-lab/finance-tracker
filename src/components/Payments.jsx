@@ -344,8 +344,22 @@ function InstCard({ inst, instBills, onOpenPlan, onMarkPaid }) {
     .filter(b => b.status === 'paid' && b.paid_date)
     .sort((a, b) => new Date(b.paid_date) - new Date(a.paid_date))[0];
   const done = paid >= totalPer;
-  const hasOverdue = instBillsForThis.some(b => b.status === 'overdue');
-  const badgeStatus = done ? 'paid' : hasOverdue ? 'overdue' : 'upcoming';
+  // badge ดูจากเดือนนี้: paid_date หรือ due_date ในเดือนนี้
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  const inThisMonth = (b) => {
+    const due = new Date(b.due_date);
+    const paidD = b.paid_date ? new Date(b.paid_date) : null;
+    return (due >= monthStart && due <= monthEnd) || (paidD && paidD >= monthStart && paidD <= monthEnd);
+  };
+  const thisMonthBills = instBillsForThis.filter(inThisMonth);
+  const badgeStatus = done ? 'paid'
+    : thisMonthBills.some(b => b.status === 'paid') ? 'paid'
+    : thisMonthBills.some(b => b.status === 'overdue') ? 'overdue'
+    : thisMonthBills.some(b => b.status === 'upcoming') ? 'upcoming'
+    : instBillsForThis.some(b => b.status === 'overdue') ? 'overdue'
+    : 'upcoming';
   const badge = statusBadge(badgeStatus);
   const pct = totalPer > 0 ? Math.round(paid / totalPer * 100) + '%' : '0%';
 
