@@ -337,7 +337,9 @@ function InstCard({ inst, instBills, onOpenPlan, onMarkPaid }) {
   const paid = instBillsForThis.filter(b => b.status === 'paid').length;
   const totalAmt = inst.segments.reduce((s, sg) => s + sg.amount_per_period * sg.periods, 0);
   const paidAmt = instBillsForThis.filter(b => b.status === 'paid').reduce((s, b) => s + (b.paid_amount || b.amount), 0);
-  const nextBill = instBillsForThis.find(b => b.status !== 'paid' && b.status !== 'cancelled');
+  const nextBill = instBillsForThis
+    .filter(b => b.status !== 'paid' && b.status !== 'cancelled')
+    .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))[0];
   const done = paid >= totalPer;
   const hasOverdue = instBillsForThis.some(b => b.status === 'overdue');
   const badgeStatus = done ? 'paid' : hasOverdue ? 'overdue' : 'upcoming';
