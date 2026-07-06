@@ -400,7 +400,7 @@ function InstCard({ inst, instBills, onOpenPlan, onMarkPaid }) {
         <button onClick={e => { e.stopPropagation(); onMarkPaid(nextBill.id); }} style={{ width: '100%', marginTop: 14, border: 'none', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: '#e3f3ec', color: '#0caa78', padding: '12px 15px', borderRadius: 13 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 700 }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-            Mark Payment {paid + 1} paid
+            Mark Payment {paid + 1} / {totalPer} paid
           </span>
           <span style={{ fontSize: 13, fontWeight: 800 }}>{baht(nextBill.amount)}</span>
         </button>
