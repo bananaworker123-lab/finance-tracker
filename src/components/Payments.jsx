@@ -340,26 +340,34 @@ function InstCard({ inst, instBills, onOpenPlan, onMarkPaid }) {
   const nextBill = instBillsForThis
     .filter(b => b.status !== 'paid' && b.status !== 'cancelled')
     .sort((a, b) => new Date(a.due_date) - new Date(b.due_date))[0];
+  const lastPaid = instBillsForThis
+    .filter(b => b.status === 'paid' && b.paid_date)
+    .sort((a, b) => new Date(b.paid_date) - new Date(a.paid_date))[0];
   const done = paid >= totalPer;
   const hasOverdue = instBillsForThis.some(b => b.status === 'overdue');
   const badgeStatus = done ? 'paid' : hasOverdue ? 'overdue' : 'upcoming';
   const badge = statusBadge(badgeStatus);
   const pct = totalPer > 0 ? Math.round(paid / totalPer * 100) + '%' : '0%';
 
+  const iconDate = nextBill ? formatShortDate(nextBill.due_date) : done ? '✓' : '—';
+  const subtitle = done
+    ? 'Completed'
+    : paid > 0 && lastPaid
+      ? `Payment ${paid} / ${totalPer} · paid ${formatShortDate(lastPaid.paid_date)}`
+      : nextBill
+        ? `Next · ${formatDate(nextBill.due_date)}`
+        : 'No upcoming';
+
   return (
     <div onClick={() => onOpenPlan(inst.id)} style={{ background: '#fff', borderRadius: 24, padding: 18, boxShadow: '0 16px 36px -28px rgba(20,40,30,.45)', cursor: 'pointer' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 13 }}>
         <div style={{ width: 50, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, flexShrink: 0 }}>
           <div style={{ width: 46, height: 46, borderRadius: 14, background: inst.tile, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>{inst.emoji}</div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#6b746e', lineHeight: 1, whiteSpace: 'nowrap' }}>
-            {nextBill ? formatShortDate(nextBill.due_date) : done ? '✓' : '—'}
-          </div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#6b746e', lineHeight: 1, whiteSpace: 'nowrap' }}>{iconDate}</div>
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: '#15271f' }}>{inst.name}</div>
-          <div style={{ fontSize: 12, color: '#9aa39c', fontWeight: 500, marginTop: 2 }}>
-            {done ? 'Completed' : nextBill ? `Payment ${paid + 1} of ${totalPer}` : 'No upcoming'}
-          </div>
+          <div style={{ fontSize: 12, color: '#9aa39c', fontWeight: 500, marginTop: 2 }}>{subtitle}</div>
         </div>
         <div style={{ display: 'inline-block', fontSize: 10.5, fontWeight: 700, padding: '3px 9px', borderRadius: 9, background: badge.bg, color: badge.color }}>{badge.label}</div>
       </div>
