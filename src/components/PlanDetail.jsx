@@ -8,6 +8,7 @@ export default function PlanDetail({ planId, onBack }) {
   const paying = useRef(false);
   const [editingId, setEditingId] = useState(null);
   const [editingAmount, setEditingAmount] = useState('');
+  const [editingDate, setEditingDate] = useState('');
   const [confirmClose, setConfirmClose] = useState(false);
   const [editPlan, setEditPlan] = useState(null); // { name }
   const [confirmDeletePlan, setConfirmDeletePlan] = useState(false);
@@ -50,6 +51,7 @@ export default function PlanDetail({ planId, onBack }) {
   function startEdit(bill) {
     setEditingId(bill.id);
     setEditingAmount(String(bill.amount));
+    setEditingDate(new Date(bill.due_date).toISOString().split('T')[0]);
   }
 
   async function saveAmount(bill) {
@@ -57,6 +59,11 @@ export default function PlanDetail({ planId, onBack }) {
     if (!newAmt || newAmt <= 0) { setEditingId(null); return; }
     const update = { amount: newAmt };
     if (bill.status === 'paid') update.paid_amount = newAmt;
+    if (editingDate) {
+      update.due_date = new Date(editingDate).toISOString();
+      const isNowOverdue = new Date(editingDate) < new Date();
+      if (bill.status !== 'paid') update.status = isNowOverdue ? 'overdue' : 'upcoming';
+    }
     await db.bills.update(bill.id, update);
     setEditingId(null);
   }
@@ -292,26 +299,46 @@ export default function PlanDetail({ planId, onBack }) {
                 </div>
               </div>
 
-              {/* Inline amount editor */}
+              {/* Inline editor */}
               {isEditing && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 10, paddingTop: 10, borderTop: '1px solid #f0f2ef' }}>
-                  <MoneyInput
-                    value={editingAmount}
-                    onChange={setEditingAmount}
-                    placeholder="New amount"
-                    style={{
-                      flex: 1, border: '1.5px solid #0caa78', borderRadius: 10, padding: '8px 12px',
-                      fontSize: 15, fontWeight: 700, fontFamily: 'inherit', outline: 'none', color: '#15271f',
-                    }}
-                  />
-                  <button onClick={() => saveAmount(r)} style={{
-                    border: 'none', cursor: 'pointer', background: '#0caa78', color: '#fff',
-                    padding: '8px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
-                  }}>Save</button>
-                  <button onClick={() => setEditingId(null)} style={{
-                    border: 'none', cursor: 'pointer', background: '#f0f2ef', color: '#5d7167',
-                    padding: '8px 12px', borderRadius: 10, fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
-                  }}>Cancel</button>
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f0f2ef', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: '#8d968f', fontWeight: 600, marginBottom: 4 }}>Amount (THB)</div>
+                      <MoneyInput
+                        value={editingAmount}
+                        onChange={setEditingAmount}
+                        placeholder="0"
+                        style={{
+                          width: '100%', border: '1.5px solid #0caa78', borderRadius: 10, padding: '8px 12px',
+                          fontSize: 15, fontWeight: 700, fontFamily: 'inherit', outline: 'none', color: '#15271f',
+                        }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 11, color: '#8d968f', fontWeight: 600, marginBottom: 4 }}>Due date</div>
+                      <input
+                        type="date"
+                        value={editingDate}
+                        onChange={e => setEditingDate(e.target.value)}
+                        style={{
+                          width: '100%', border: '1.5px solid #0caa78', borderRadius: 10, padding: '8px 12px',
+                          fontSize: 13, fontWeight: 700, fontFamily: 'inherit', outline: 'none', color: '#15271f',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => saveAmount(r)} style={{
+                      flex: 2, border: 'none', cursor: 'pointer', background: '#0caa78', color: '#fff',
+                      padding: '9px 16px', borderRadius: 10, fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
+                    }}>Save</button>
+                    <button onClick={() => setEditingId(null)} style={{
+                      flex: 1, border: 'none', cursor: 'pointer', background: '#f0f2ef', color: '#5d7167',
+                      padding: '9px 12px', borderRadius: 10, fontSize: 13, fontWeight: 700, fontFamily: 'inherit',
+                    }}>Cancel</button>
+                  </div>
                 </div>
               )}
             </div>
